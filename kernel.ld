@@ -20,6 +20,7 @@ SECTIONS
 	.rodata : {
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 	}
+    . = ALIGN(0x1000); /* NC: try to fix the rodata overflow */
 
 	/* Include debugging information in kernel memory */
 	.stab : {

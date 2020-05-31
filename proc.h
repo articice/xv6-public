@@ -49,6 +49,14 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+    // process execution time in TICKs
+    // TODO: update these fields in your code
+    int ctime;
+    int stime;
+    int retime;
+    int rutime;
+    int priority; // the current priority of the process. Used to help with scheduling algorithm
 };
 
 // Process memory is laid out contiguously, low addresses first:

@@ -7,6 +7,8 @@
 #include "proc.h"
 #include "spinlock.h"
 
+#define COLLECT_PROC_TIMING
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -311,6 +313,19 @@ wait(void)
   }
 }
 
+static void print_proc_stat(struct proc* p){
+  static int pid = 0;
+  static int prio = 0;
+  if(p->parent == 0){
+    return;
+  }
+  if(pid != p->pid || (prio != p->priority) ){
+    cprintf("[%d,%d] ", p->pid, p->priority);
+    pid = p->pid;
+    prio = p->priority;
+  }
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -336,23 +351,26 @@ scheduler(void)
       if(p->state != RUNNABLE)
         continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+ 
+            c->proc = p;
+            print_proc_stat(p);
+#ifdef COLLECT_PROC_TIMING
+            // update our stats. This has to be done exactly once every TICK.
+            p->rutime++;
+#endif //COLLECT_PROC_TIMING
+            switchuvm(p);
+            p->state = RUNNING;
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
+            swtch(&(c->scheduler), p->context);
+            switchkvm();
 
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
+            // Process is done running for now.
+            // It should have changed its p->state before coming back.
+            c->proc = 0;
+       }
+        release(&ptable.lock);
+
     }
-    release(&ptable.lock);
-
-  }
 }
 
 // Enter scheduler.  Must hold only ptable.lock
@@ -418,7 +436,7 @@ void
 sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
-  
+
   if(p == 0)
     panic("sleep");
 
@@ -516,6 +534,7 @@ procdump(void)
   char *state;
   uint pc[10];
 
+  cprintf("pid \tprio \tstate \tname\n");
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -523,7 +542,7 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
-    cprintf("%d %s %s", p->pid, state, p->name);
+    cprintf("%d \t%d\t%s \t%s", p->pid, p->priority, state, p->name);
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)
