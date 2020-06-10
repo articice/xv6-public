@@ -1,12 +1,31 @@
 #include "types.h"
 #include "user.h"
 
-extern int set_priority(int);
 
-static int iteratrions = 10*1000*1000;
+
+////////////////{{ FAKE functions.
+// Remove these functions before implementing your own real code
+int
+wait2(int *retime, int *rutime, int *stime, int* elapsed)
+{
+    *retime = *rutime = *stime = *elapsed = 0;
+    return 0;
+}
+
+int set_priority(int prio)
+{
+    return 0;
+}
+////////////////////////////////// }}
+
+
+static int iterations = 10*1000*1000;
 static double x=0;
 
-/* for several processes:
+/*
+ fork several several processes, with different priorities, and let them run.
+
+The pattern (in prio_keys[] ):
 2 @ prio 1
 then 2 @ prio 0
 then 1 at prio 3
@@ -35,54 +54,28 @@ void check_proc_order(){
             //int new_pid = getpid();
            
             int prio = prio_keys[k]; // index k inherited from parent
-		    //printf(1,"Child(%d) received prio: %d\n", getpid(), prio);
+		    printf(1,"Child(%d) is setting prio: %d\n", getpid(), prio);
             set_priority(prio);
             // do something that takes cpu time
-            for(k=0;k< iteratrions;k++){
+            for(k=0;k< iterations;k++){
                     x += k; // x is global so the compiler cannot remove this loop
             }
-            //printf(1,"\nChild(%d) DONE\n", getpid());
+            printf(1,"\nChild(%d) DONE\n", getpid());
             exit();
         } else{
             // in parent
-        }
-    }
-    for(int i = 0; i < num_children; i++)
-        wait();
-    //printf(0,"\nPARENT finished\n");
-}
-int proces_fairness() {
-    int num_children = 6;
-    check_proc_order();
-    return 0; // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    for(int k = 0; k < num_children;k++) {
-        int pid = fork();
-        if (pid < 0) {
-            printf(0, "fork failed");
-            return (3);
-        }
-        if (pid == 0) {
-            // in child
-            int new_pid = getpid();
-            printf(0,"Setting pid %d to prio %d\n", new_pid, new_pid%3);
-            set_priority(new_pid % 3);
-            for (int i = 0; i < 200; i++) {
-                printf(0,"%d,", new_pid);
-                for(k=0;k< iteratrions;k++){
-                    x += k;
-                }
-            }
-            printf(0,"child %d finished\n");
-            exit();
+            // simply keep looping and forking more processes
         }
     }
 
-    for(int i = 0; i < num_children; i++)
-        wait();
-    printf(0,"PARENT exiting\n");
+    // all processes are on their way.
+    // Wait here until all of them finished.
+    for(int i = 0; i < num_children; i++) {
+        int waited, ran, slept, elapsed;
+        int pid = wait2(&waited, &ran, &slept, &elapsed);
+        printf(1,"process %d terminated.  wait: %d,\t runtime: %d,\t sleep: %d, \t dtime: %d\n",
+                pid, waited, ran, slept, elapsed);
+    }
+    printf(1,"\nPARENT finished\n");
 }
-#if 0
-int main(){
-    proces_fairness();
-}
-#endif
+

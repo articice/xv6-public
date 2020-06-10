@@ -312,19 +312,19 @@ wait(void)
     sleep(curproc, &ptable.lock);  //DOC: wait-sleep
   }
 }
-
-static void print_proc_stat(struct proc* p){
-  static int pid = 0;
-  static int prio = 0;
-  if(p->parent == 0){
-    return;
-  }
-  if(pid != p->pid || (prio != p->priority) ){
-    cprintf("[%d,%d] ", p->pid, p->priority);
-    pid = p->pid;
-    prio = p->priority;
-  }
-}
+//
+//static void print_proc_stat(struct proc* p){
+//  static int pid = 0;
+//  static int prio = 0;
+//  if(p->parent == 0){
+//    return;
+//  }
+//  if(pid != p->pid || (prio != p->priority) ){
+//    cprintf("[%d,%d] ", p->pid, p->priority);
+//    pid = p->pid;
+//    prio = p->priority;
+//  }
+//}
 
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
@@ -353,7 +353,7 @@ scheduler(void)
 
  
             c->proc = p;
-            print_proc_stat(p);
+  //          print_proc_stat(p);
 #ifdef COLLECT_PROC_TIMING
             // update our stats. This has to be done exactly once every TICK.
             p->rutime++;
