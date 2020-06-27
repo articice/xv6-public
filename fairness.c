@@ -3,19 +3,7 @@
 
 
 
-////////////////{{ FAKE functions.
-// Remove these functions before implementing your own real code
-int
-wait2(int *retime, int *rutime, int *stime, int* elapsed)
-{
-    *retime = *rutime = *stime = *elapsed = 0;
-    return 0;
-}
 
-int set_priority(int prio)
-{
-    return 0;
-}
 ////////////////////////////////// }}
 
 
@@ -71,7 +59,7 @@ void check_proc_order(){
     // all processes are on their way.
     // Wait here until all of them finished.
     for(int i = 0; i < num_children; i++) {
-        int waited, ran, slept, elapsed;
+        int waited = 0, ran = 0, slept = 0, elapsed = 0;
         int pid = wait2(&waited, &ran, &slept, &elapsed);
         printf(1,"process %d terminated.  wait: %d,\t runtime: %d,\t sleep: %d, \t dtime: %d\n",
                 pid, waited, ran, slept, elapsed);

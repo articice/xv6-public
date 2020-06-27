@@ -312,6 +312,24 @@ wait(void)
     sleep(curproc, &ptable.lock);  //DOC: wait-sleep
   }
 }
+
+int
+wait2(int *retime, int *rutime, int *stime, int* elapsed)
+{
+  struct proc *p = myproc();
+  *retime = p->retime;
+  *rutime = p->rutime;
+  *stime = p->stime;
+  *elapsed = p->elapsed;
+  return wait();
+}
+
+int set_priority(int prio)
+{
+  struct proc *curproc = myproc();
+  curproc->priority = prio; //TODO check if safe
+  return 0; //FIXME always success
+}
 //
 //static void print_proc_stat(struct proc* p){
 //  static int pid = 0;
@@ -356,18 +374,18 @@ scheduler(void)
   //          print_proc_stat(p);
 #ifdef COLLECT_PROC_TIMING
             // update our stats. This has to be done exactly once every TICK.
-            p->rutime++;
+            c->proc->rutime++;
 #endif //COLLECT_PROC_TIMING
-            switchuvm(p);
-            p->state = RUNNING;
+            switchuvm(c->proc);
+            c->proc->state = RUNNING;
 
-            swtch(&(c->scheduler), p->context);
+            swtch(&(c->scheduler), c->proc->context);
             switchkvm();
 
             // Process is done running for now.
             // It should have changed its p->state before coming back.
             c->proc = 0;
-       }
+       //}
         release(&ptable.lock);
 
     }
