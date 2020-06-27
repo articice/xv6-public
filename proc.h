@@ -57,6 +57,8 @@ struct proc {
     int retime;
     int rutime;
     int priority; // the current priority of the process. Used to help with scheduling algorithm
+    //int used_up_entire_tick
+    int elapsed;
 };
 
 // Process memory is laid out contiguously, low addresses first:

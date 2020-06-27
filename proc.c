@@ -113,6 +113,7 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
+  p->priority = 2;
 
   return p;
 }
@@ -363,14 +364,31 @@ scheduler(void)
     // Enable interrupts on this processor.
     sti();
 
+    int found_highest_priority = -1;
+
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
 
- 
-            c->proc = p;
+      p->elapsed++;
+      if (p->state == SLEEPING) p->stime++;
+      if (p->state == RUNNABLE) p->retime++;
+
+      if(p->state != RUNNABLE) continue;
+
+      if (p->priority > found_highest_priority) {
+        found_highest_priority = p->priority;
+        c->proc = p;
+      }
+    }
+
+    if (c->proc == 0) {
+      release(&ptable.lock);
+      continue; //FIXME
+    }
+
+    //found highest priority process
+            //c->proc = p;
   //          print_proc_stat(p);
 #ifdef COLLECT_PROC_TIMING
             // update our stats. This has to be done exactly once every TICK.
