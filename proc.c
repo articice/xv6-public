@@ -364,14 +364,6 @@ scheduler(void)
     // Enable interrupts on this processor.
     sti();
 
-    acquire(&ptable.lock);
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-      p->elapsed++;
-      if (p->state == SLEEPING) p->stime++;
-      if (p->state == RUNNABLE) p->retime++;
-    }
-    release(&ptable.lock);
-
     for (int i = 3; i > 0; i--) {
 
       //int found_highest_priority = i - 1;
@@ -612,4 +604,16 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+extern void update_statistics() {
+  struct proc *p;
+
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    p->elapsed++;
+    if (p->state == SLEEPING) p->stime++;
+    if (p->state == RUNNABLE) p->retime++;
+  }
+  release(&ptable.lock);
 }
