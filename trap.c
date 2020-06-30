@@ -52,7 +52,7 @@ trap(struct trapframe *tf)
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
-
+	  //cprintf("Tak %d",ticks);
       update_statistics();
 
       wakeup(&ticks);

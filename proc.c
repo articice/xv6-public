@@ -327,11 +327,15 @@ wait2(int *retime, int *rutime, int *stime, int* elapsed)
 
 int set_priority(int prio)
 {
+  //return -1
   struct proc *curproc = myproc();
+  acquire(&ptable.lock);
   curproc->priority = prio; //TODO check if safe
+  release(&ptable.lock);
   return 0; //FIXME always success
+  
 }
-//
+
 //static void print_proc_stat(struct proc* p){
 //  static int pid = 0;
 //  static int prio = 0;
@@ -345,6 +349,7 @@ int set_priority(int prio)
 //  }
 //}
 
+	
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -353,58 +358,83 @@ int set_priority(int prio)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
+
+//int tiktok;
+static int pcount[] = {0,32,16,8};
 void
 scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  
+
+  start:
   for(;;) {
     // Enable interrupts on this processor.
     sti();
+	//tiktok++;
 
+    //same_level:
     for (int i = 3; i > 0; i--) {
 
       //int found_highest_priority = i - 1;
       c->proc = 0;
 
+      //p = ptable.proc;
+
       // Loop over process table looking for process to run.
       acquire(&ptable.lock);
+      int found = 0;
+
       for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
 
         if (p->state != RUNNABLE) continue;
+        if (p->priority == i) {
+          found = 1;
+          for (int tick = 0; tick < pcount[i]; tick++) {
+            if (p->state != RUNNABLE) continue; //waste rest of time slice (avoid panic: zombie exit)
+            c->proc = p;
+            //print_proc_stat(p);  //FIXME fix my head
 
-        if (p->priority >= i) {
-          c->proc = p;
-          //          print_proc_stat(p);
 #ifdef COLLECT_PROC_TIMING
-          // update our stats. This has to be done exactly once every TICK.
-          p->rutime++;
+            // update our stats. This has to be done exactly once every TICK.
+            //p->rutime++; //FUCKME
 #endif //COLLECT_PROC_TIMING
-          switchuvm(c->proc);
-          p->state = RUNNING;
+            switchuvm(c->proc);
+            p->state = RUNNING;
+            p->rutime++;
 
-          swtch(&(c->scheduler), p->context);
-          switchkvm();
+            swtch(&(c->scheduler), p->context);
+            switchkvm();
 
-          // Process is done running for now.
-          // It should have changed its p->state before coming back.
-          c->proc = 0;
+            // Process is done running for now.
+            // It should have changed its p->state before coming back.
+            c->proc = 0;
+//            if (p->rutime % pcount[i] == 0) {
+//              p->rutime++;
+//            }
+          }
         }
+
       }
+
       release(&ptable.lock);
+
+      if (found) goto start;
     }
 
-    int found_highest_priority = -1;
+    //FIFO scheduler
+    int level = 0;
+    int found_highest_priority = level-1;
 
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE) continue;
+      if (p->state != RUNNABLE || p->priority != level) continue;
 
       if (p->priority > found_highest_priority) {
         found_highest_priority = p->priority;
         c->proc = p;
+        //print_proc_stat(p);
       }
     }
 
@@ -422,7 +452,9 @@ scheduler(void)
 
     swtch(&(c->scheduler), c->proc->context);
     switchkvm();
+	//cprintf("tok %d",tiktok);
 
+	  c->proc = 0;
     release(&ptable.lock);
   }
 }
@@ -606,6 +638,7 @@ procdump(void)
   }
 }
 
+/*
 extern void update_statistics() {
   struct proc *p;
 
@@ -614,6 +647,30 @@ extern void update_statistics() {
     p->elapsed++;
     if (p->state == SLEEPING) p->stime++;
     if (p->state == RUNNABLE) p->retime++;
+  }
+  release(&ptable.lock);
+}
+*/
+
+
+extern void update_statistics() {
+  struct proc *p;
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    p->elapsed++;
+	switch(p->state) {
+      case SLEEPING:
+        p->stime++;
+        break;
+      case RUNNABLE:
+        p->retime++;
+        break;
+//      case RUNNING:
+//        p->rutime++;
+//        break;
+      default:
+        ;
+    }
   }
   release(&ptable.lock);
 }
