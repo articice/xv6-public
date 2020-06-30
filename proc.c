@@ -328,12 +328,13 @@ wait2(int *retime, int *rutime, int *stime, int* elapsed)
 
 int set_priority(int prio)
 {
-  //return -1
+  if (prio < 0 || prio > 3) return -1;
+
   struct proc *curproc = myproc();
   acquire(&ptable.lock);
-  curproc->priority = prio; //TODO check if safe
+  curproc->priority = prio;
   release(&ptable.lock);
-  return 0; //FIXME always success
+  return 0;
   
 }
 
@@ -661,6 +662,8 @@ extern void update_statistics() {
       case RUNNING:
         p->rutime++;
         break;
+      default:
+      ;
     }
   }
   release(&ptable.lock);
