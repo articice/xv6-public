@@ -114,6 +114,7 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
   p->priority = 2;
+  p->slice_counter = 0;
 
   return p;
 }
@@ -372,15 +373,10 @@ scheduler(void)
   for(;;) {
     // Enable interrupts on this processor.
     sti();
-	//tiktok++;
 
-    //same_level:
+    //levels 3-1
     for (int i = 3; i > 0; i--) {
-
-      //int found_highest_priority = i - 1;
       c->proc = 0;
-
-      //p = ptable.proc;
 
       // Loop over process table looking for process to run.
       acquire(&ptable.lock);
@@ -390,19 +386,15 @@ scheduler(void)
 
         if (p->state != RUNNABLE) continue;
         if (p->priority == i) {
-          found = 1;
-          for (int tick = 0; tick < pcount[i]; tick++) {
-            if (p->state != RUNNABLE) continue; //waste rest of time slice (avoid panic: zombie exit)
+          if (p->slice_counter != 0 && p->slice_counter % (pcount[i]+1) == 0) continue;
+            found = 1;
+            p->slice_counter++;
             c->proc = p;
             //print_proc_stat(p);  //FIXME fix my head
 
-#ifdef COLLECT_PROC_TIMING
-            // update our stats. This has to be done exactly once every TICK.
-            //p->rutime++; //FUCKME
-#endif //COLLECT_PROC_TIMING
             switchuvm(c->proc);
             p->state = RUNNING;
-            p->rutime++;
+            //p->rutime++;
 
             swtch(&(c->scheduler), p->context);
             switchkvm();
@@ -410,22 +402,36 @@ scheduler(void)
             // Process is done running for now.
             // It should have changed its p->state before coming back.
             c->proc = 0;
-//            if (p->rutime % pcount[i] == 0) {
-//              p->rutime++;
-//            }
-          }
+
+            release(&ptable.lock);
+            goto start;
         }
 
       }
 
-      release(&ptable.lock);
+      if (found) {
+        release(&ptable.lock);
+        goto start;
+      }
 
-      if (found) goto start;
+      //reset slice counters
+      int have_runnable = 0;
+      for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        if (p->priority == i) {
+          p->slice_counter = 0;
+          if (p->state == RUNNABLE) have_runnable = 1;
+        }
+      }
+
+      release(&ptable.lock);
+      if (have_runnable) goto start;
+      //else drop down
     }
 
     //FIFO scheduler
     int level = 0;
     int found_highest_priority = level-1;
+    c->proc = 0;
 
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -440,12 +446,12 @@ scheduler(void)
 
     if (c->proc == 0) {
       release(&ptable.lock);
-      continue;
+      goto start;
     }
 
 #ifdef COLLECT_PROC_TIMING
     // update our stats. This has to be done exactly once every TICK.
-    c->proc->rutime++;
+    //c->proc->rutime++;
 #endif //COLLECT_PROC_TIMING
     switchuvm(c->proc);
     c->proc->state = RUNNING;
@@ -638,38 +644,23 @@ procdump(void)
   }
 }
 
-/*
-extern void update_statistics() {
-  struct proc *p;
-
-  acquire(&ptable.lock);
-  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-    p->elapsed++;
-    if (p->state == SLEEPING) p->stime++;
-    if (p->state == RUNNABLE) p->retime++;
-  }
-  release(&ptable.lock);
-}
-*/
-
 
 extern void update_statistics() {
   struct proc *p;
   acquire(&ptable.lock);
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
     p->elapsed++;
-	switch(p->state) {
+
+    switch (p->state) {
       case SLEEPING:
         p->stime++;
         break;
       case RUNNABLE:
         p->retime++;
         break;
-//      case RUNNING:
-//        p->rutime++;
-//        break;
-      default:
-        ;
+      case RUNNING:
+        p->rutime++;
+        break;
     }
   }
   release(&ptable.lock);

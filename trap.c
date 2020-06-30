@@ -33,6 +33,7 @@ idtinit(void)
 }
 
 extern void update_statistics();
+
 //PAGEBREAK: 41
 void
 trap(struct trapframe *tf)
@@ -53,7 +54,9 @@ trap(struct trapframe *tf)
       acquire(&tickslock);
       ticks++;
 	  //cprintf("Tak %d",ticks);
+//#ifdef COLLECT_PROC_TIMING
       update_statistics();
+//#endif //COLLECT_PROC_TIMING
 
       wakeup(&ticks);
       release(&tickslock);

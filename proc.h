@@ -59,6 +59,7 @@ struct proc {
     int priority; // the current priority of the process. Used to help with scheduling algorithm
     //int used_up_entire_tick
     int elapsed;
+    int slice_counter;
 };
 
 // Process memory is laid out contiguously, low addresses first:
